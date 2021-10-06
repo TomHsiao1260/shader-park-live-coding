@@ -9,7 +9,7 @@
   "private": false,
   "scripts": {
     "start": "parcel index.html --open",
-    "build": "parcel build index.html"
+    "build": "parcel build index.html --public-url='./'"
   },
   "dependencies": {
     "@codemirror/basic-setup": "^0.19.0",

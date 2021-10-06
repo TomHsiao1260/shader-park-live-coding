@@ -5,7 +5,11 @@ import { spCode } from './src/spCode.js';
 import { initUIInteractions } from './src/ui.js';
 import {createEditor} from './src/editor.js';
 
+import {font} from './src/helvetiker_regular1.typeface.json';
+
+let fonts = JSON.parse(font)
 let state = {};
+
 initUIInteractions(state);
 
 let startCode = spCode();
@@ -50,7 +54,7 @@ scene.add(mesh);
 
 if( 'text' in qParams) {
   const loader = new FontLoader();
-  loader.load( 'https://cdn.glitch.com/44b034f5-6c9a-414c-96b3-8280ecf82f27%2Fhelvetiker_regular.typeface.json?v=1615399030749', function ( font ) {
+  // loader.load( './helvetiker_regular1.typeface.json', function ( font ) {
     mesh.geometry = new TextBufferGeometry( qParams['text'], {
       font: font,
       size: 2,
@@ -64,7 +68,7 @@ if( 'text' in qParams) {
     } );
     mesh.geometry.computeBoundingSphere();
     mesh.geometry.center();
-  });
+  // });
 }
 
 let controls = new OrbitControls( camera, renderer.domElement, {
