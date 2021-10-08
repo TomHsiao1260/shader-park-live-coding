@@ -4,18 +4,26 @@ import { createSculptureWithGeometry, sculptToThreeJSMaterial } from 'shader-par
 import { spCode } from './src/spCode.js';
 import { initUIInteractions } from './src/ui.js';
 import {createEditor} from './src/editor.js';
+import {Pane} from 'tweakpane';
 
-import {font} from './src/helvetiker_regular1.typeface.json';
 
-let fonts = JSON.parse(font)
+// import {font} from './src/helvetiker_regular1.typeface.json';
+
+// let fonts = JSON.parse(font)
 let state = {};
+
+// const pane = new Pane();
 
 initUIInteractions(state);
 
 let startCode = spCode();
 
 let scene = new Scene();
-let params = { time: 0 };
+let params = { time: 0, test: {'x':.2, 'y': .4}};
+// pane.addInput(
+//   params, 'test',
+//   {min: 0, max: 2 }
+// );
 
 let camera = new PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 camera.position.z = 4;
@@ -50,11 +58,14 @@ let mesh = createSculptureWithGeometry(geometry, startCode, () => ( {
     time: params.time,
     _scale: scale
 } ));
+
+
 scene.add(mesh);
 
 if( 'text' in qParams) {
   const loader = new FontLoader();
-  // loader.load( './helvetiker_regular1.typeface.json', function ( font ) {
+
+  loader.load( './helvetiker_regular1.typeface.json', function ( font ) {
     mesh.geometry = new TextBufferGeometry( qParams['text'], {
       font: font,
       size: 2,
@@ -81,6 +92,8 @@ camera.position.z = 2;
 
 window.controls = controls;
 
+const uniformsToExclude = { 'sculptureCenter': 0, 'msdf': 0, 'opacity': 0, 'time': 0, 'stepSize': 0, '_scale' : 1, 'resolution': 0};;
+
 let onCodeChange = (code) => {
   state.code = code;
   try {
@@ -90,7 +103,12 @@ let onCodeChange = (code) => {
     // scene.remove(mesh);
     // scene.add(newMesh);
     // mesh = newMesh;
+
     mesh.material = sculptToThreeJSMaterial(code);
+    let uniforms = mesh.material.uniformDescriptions;
+    uniforms = uniforms.filter(uniform => !(uniform.name in uniformsToExclude))
+    
+    console.log(uniforms);
   } catch (error) {
     console.error(error);
   }
