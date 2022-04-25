@@ -107,7 +107,7 @@ if( 'text' in qParams) {
     });
     mesh.geometry.computeBoundingSphere();
     mesh.geometry.center();
-  // });
+  });
 }
 
 let controls = new OrbitControls( camera, renderer.domElement, {
