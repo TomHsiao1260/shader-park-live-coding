@@ -1,10 +1,28 @@
 import { Scene, PerspectiveCamera, WebGLRenderer, Color, TorusKnotGeometry, SphereGeometry, FontLoader, TextBufferGeometry } from 'three';
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { createSculptureWithGeometry, sculptToThreeJSMaterial } from 'shader-park-core';
-import { spCode } from './src/spCode.js';
+import { createSculptureWithGeometry, sculptToThreeJSMaterial, createMultiPassSculptureWithGeometry } from 'shader-park-core';
+import { spCode, defaultPassCode } from './src/spCode.js';
 import { initUIInteractions } from './src/ui.js';
 import {createEditor} from './src/editor.js';
 import {Pane} from 'tweakpane';
+import { Vector2 } from 'three';
+
+
+let tabs = document.querySelectorAll('.tablinks');
+let activeTab = document.querySelector('.active');
+let activeContainer = document.querySelector('.final-image');
+let getContainerClass = (tab) => '.'+tab.innerHTML.toLocaleLowerCase().replace(' ', '-');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    activeTab.classList.remove('active');
+    tab.classList.add('active');
+    activeTab = tab;
+    activeContainer.classList.add('hidden');
+    activeContainer = document.querySelector(getContainerClass(tab))
+    activeContainer.classList.remove('hidden');
+  }, false);
+});
 
 
 // import {font} from './src/helvetiker_regular1.typeface.json';
@@ -32,6 +50,7 @@ let renderer = new WebGLRenderer({ antialias: true, transparent: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setPixelRatio( window.devicePixelRatio );
 
+
 renderer.setClearColor( new Color(1, 1, 1), 0 );
 document.body.appendChild( renderer.domElement );
 
@@ -54,10 +73,19 @@ if('scale' in qParams) {
 
 state.code = startCode;
 // Shader Park Setup
-let mesh = createSculptureWithGeometry(geometry, startCode, () => ( {
-    time: params.time,
-    _scale: scale
-} ));
+let res = new Vector2();
+renderer.getSize(res);
+let filler = `let s = enable2D()`;
+
+function initMultiPass(finalImage, bufferA, bufferB, bufferC, bufferD) {
+  return createMultiPassSculptureWithGeometry(geometry, { finalImage, bufferA, bufferB, bufferC, bufferD }, () => ( {
+      time: params.time,
+      _scale: scale,
+      resolution: res
+  } ));
+}
+let mesh = initMultiPass(startCode, defaultPassCode(), filler, filler, filler);
+
 
 
 scene.add(mesh);
@@ -94,31 +122,77 @@ window.controls = controls;
 
 const uniformsToExclude = { 'sculptureCenter': 0, 'msdf': 0, 'opacity': 0, 'time': 0, 'stepSize': 0, '_scale' : 1, 'resolution': 0};;
 
-let onCodeChange = (code) => {
-  state.code = code;
-  try {
-    // let newMesh = createSculpture(code, () => ( {
-    //   time: params.time,
-    // } ));
-    // scene.remove(mesh);
-    // scene.add(newMesh);
-    // mesh = newMesh;
-
-    mesh.material = sculptToThreeJSMaterial(code);
-    let uniforms = mesh.material.uniformDescriptions;
-    uniforms = uniforms.filter(uniform => !(uniform.name in uniformsToExclude))
-    
-    console.log(uniforms);
-  } catch (error) {
-    console.error(error);
+let getAllCode = () => {
+  let output = {}
+  for (const [key, value] of Object.entries(editors)) {    
+    output[key] = value.state.doc.toString()
   }
+  return output;
+}
+
+let onCodeChange = (code, editorID) => {
+  state.code = code;
+  
+  try {
+    // console.log(editorID, editors)
+    let allCode = getAllCode();
+    renderer.getSize(res);
+    let newMesh = initMultiPass(allCode.finalImage, allCode.bufferA, allCode.bufferB, allCode.bufferC, allCode.bufferD);
+    // let newMesh = createMultiPassSculptureWithGeometry(geometry, {bufferA:allCode.bufferA, finalImage: allCode.finalImage}, () => ( {
+    //   time: params.time,
+    //   _scale: scale,
+    //   resolution: res
+    // } ));
+    scene.remove(mesh);
+    
+    scene.add(newMesh);
+    mesh = newMesh;
+
+  } catch(e) {
+    console.error(e);
+  }
+
+  //   mesh.material = sculptToThreeJSMaterial(code);
+  //   let uniforms = mesh.material.uniformDescriptions;
+  //   uniforms = uniforms.filter(uniform => !(uniform.name in uniformsToExclude))
+    
+  //   console.log(uniforms);
+  // } catch (error) {
+  //   console.error(error);
+  // }
 }
 
 /////Editor
-let editor = createEditor(startCode, onCodeChange);
-window.editor = editor;
-let codeContainer = document.querySelector('.code-container');
-codeContainer.appendChild(editor.dom);
+// let editor = createEditor(startCode, onCodeChange);
+// let codeContainer = document.querySelector('.final-image');
+// codeContainer.appendChild(editor.dom);
+
+let editorsCodeRef = {
+  '.common' : '',
+  '.buffera' : defaultPassCode(),
+  '.bufferb' : filler,
+  '.bufferc' : filler,
+  '.bufferd' : filler,
+  '.final-image' : spCode(),
+}
+let lookup = {
+  '.common' : 'common',
+  '.buffera' : 'bufferA',
+  '.bufferb' : 'bufferB',
+  '.bufferc' : 'bufferC',
+  '.bufferd' : 'bufferD',
+  '.final-image' : 'finalImage'
+};
+let editors = {}
+for (const [key, value] of Object.entries(editorsCodeRef)) {
+  
+  let container = document.querySelector(key);
+  let editor = createEditor(value, (code) => {
+    onCodeChange(code, lookup[key]);
+  });
+  container.appendChild(editor.dom);
+  editors[lookup[key]] = editor;
+}
 
 let onWindowResize = () => {
   camera.aspect = window.innerWidth / window.innerHeight;

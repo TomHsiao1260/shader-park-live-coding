@@ -1,6 +1,13 @@
 dist/
 dist.zip
 
+
+/screen_shots/cap2
+/captures
+/screen_shots/grid*
+
+.DS_Store
+
 # Logs
 logs
 *.log
